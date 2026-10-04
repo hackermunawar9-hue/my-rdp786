@@ -1,0 +1,45 @@
+name: Tailscale Setup & Connect
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: # Manual trigger ke liye
+
+jobs:
+  setup-and-connect:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Install Tailscale
+        run: |
+          curl -fsSL https://tailscale.com/install.sh | sh
+
+      - name: Connect to Tailscale Network
+        env:
+          TAILSCALE_AUTH_KEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
+        run: |
+          echo "Connecting to Tailscale network..."
+          sudo tailscale up --authkey=$TAILSCALE_AUTH_KEY --hostname=gha-runner-${{ github.run_id }}
+          
+          echo "Waiting for connection..."
+          sleep 5
+          
+          echo "Connection Status:"
+          tailscale status
+          
+          echo "Your Node IP is:"
+          tailscale ip -4
+
+      - name: Verify Connectivity
+        run: |
+          # Yahan check karo ki node online hai ya nahi
+          if [[ $(tailscale status | grep -c "online") -gt 0 ]]; then
+            echo "SUCCESS: Local machine is now reachable via Tailscale."
+            echo "You can now RDP into this machine using its Tailscale IP."
+          else
+            echo "FAILED: Could not establish connection."
+            exit 1
+          fi
